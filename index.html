@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f17" />
+  <title>SmalltestOS — WebLLM Test</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>SmalltestOS</h1>
+    <p class="subtitle">Smallest WebLLM test app</p>
+  </header>
+
+  <section class="controls">
+    <label for="model-select">Model</label>
+    <select id="model-select"></select>
+
+    <button id="load-btn" type="button">Load model</button>
+
+    <div class="status-grid">
+      <div class="status-row">
+        <span class="status-key">model_id</span>
+        <span class="status-val" id="model-id">—</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">status</span>
+        <span class="status-val" id="load-status">idle</span>
+      </div>
+      <div class="status-row">
+        <span class="status-key">last response time</span>
+        <span class="status-val" id="response-time">—</span>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </section>
+
+  <main id="chat" class="chat" aria-live="polite"></main>
+
+  <form id="chat-form" class="composer">
+    <input
+      id="prompt-input"
+      type="text"
+      placeholder="Type a message…"
+      autocomplete="off"
+      disabled
+    />
+    <button id="send-btn" type="submit" disabled>Send</button>
+  </form>
+
+  <footer class="footer">
+    <button id="clear-btn" type="button">Clear chat</button>
+    <span class="footer-note">Runs 100% in your browser via WebGPU. No server, no memory.</span>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
