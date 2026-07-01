@@ -31,6 +31,7 @@ const modelSelect = document.getElementById("model-select");
 const loadBtn = document.getElementById("load-btn");
 const modelIdEl = document.getElementById("model-id");
 const loadStatusEl = document.getElementById("load-status");
+const downloadEl = document.getElementById("download-progress");
 const responseTimeEl = document.getElementById("response-time");
 const progressBar = document.getElementById("progress-bar");
 const chatEl = document.getElementById("chat");
@@ -79,6 +80,48 @@ function setProgress(fraction) {
   progressBar.style.width = pct + "%";
 }
 
+// --- Download readout ------------------------------------------------------
+// Shows percent + MB fetched + a wall-clock elapsed counter. The elapsed timer
+// ticks on its own once per second, so if the download stalls you can SEE it:
+// the seconds keep climbing while percent/MB stay frozen = stuck, not slow.
+let loadStart = 0;
+let elapsedTimer = null;
+let lastProgressPct = 0;
+let lastMb = "";
+
+function fmtElapsed() {
+  const s = Math.max(0, (performance.now() - loadStart) / 1000);
+  return s < 60 ? s.toFixed(0) + "s" : Math.floor(s / 60) + "m " + Math.floor(s % 60) + "s";
+}
+
+function renderDownload() {
+  const parts = [lastProgressPct + "%"];
+  if (lastMb) parts.push(lastMb);
+  parts.push(fmtElapsed());
+  downloadEl.textContent = parts.join(" · ");
+}
+
+function startDownloadReadout() {
+  loadStart = performance.now();
+  lastProgressPct = 0;
+  lastMb = "";
+  renderDownload();
+  clearInterval(elapsedTimer);
+  elapsedTimer = setInterval(renderDownload, 1000); // keep ticking even mid-stall
+}
+
+function stopDownloadReadout(finalText) {
+  clearInterval(elapsedTimer);
+  elapsedTimer = null;
+  if (finalText !== undefined) downloadEl.textContent = finalText;
+}
+
+// Pull "123MB" out of WebLLM's progress text when present.
+function parseMb(text) {
+  const m = /([\d.]+\s*MB)/i.exec(text || "");
+  return m ? m[1].replace(/\s+/g, "") : "";
+}
+
 function addMessage(role, text) {
   const el = document.createElement("div");
   el.className = "msg " + (role === "user" ? "user" : "bot");
@@ -112,6 +155,7 @@ async function loadModel() {
   setProgress(0);
   modelIdEl.textContent = modelId;
   setStatus("initializing…");
+  startDownloadReadout();
 
   try {
     setStatus("loading WebLLM runtime…");
@@ -120,13 +164,20 @@ async function loadModel() {
       initProgressCallback: (report) => {
         // report.progress: 0..1, report.text: human readable stage
         setStatus(report.text || "loading…");
-        if (typeof report.progress === "number") setProgress(report.progress);
+        if (typeof report.progress === "number") {
+          setProgress(report.progress);
+          lastProgressPct = Math.round(report.progress * 100);
+        }
+        const mb = parseMb(report.text);
+        if (mb) lastMb = mb;
+        renderDownload();
       },
     });
 
     loadedModelId = modelId;
     setProgress(1);
     setStatus("ready");
+    stopDownloadReadout("done · " + fmtElapsed());
     messages = []; // fresh model = fresh conversation, no memory carried over
     setComposerEnabled(true);
     input.focus();
@@ -134,6 +185,7 @@ async function loadModel() {
   } catch (err) {
     console.error(err);
     setStatus("error");
+    stopDownloadReadout("failed · " + fmtElapsed());
     addMessage("bot", "Failed to load model:\n" + (err?.message || String(err)));
   } finally {
     busy = false;
