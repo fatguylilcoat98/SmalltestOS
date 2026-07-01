@@ -6,13 +6,34 @@
 // model". That keeps the UI shell (model selector, status) working even if the
 // CDN is briefly unreachable — and turns a network failure into a clear message
 // instead of a blank screen.
-const WEBLLM_URL = "https://esm.run/@mlc-ai/web-llm";
+//
+// We try multiple CDNs in order: some mobile networks block or throttle one
+// jsDelivr/esm.run) but not another (esm.sh). First one that imports wins.
+const WEBLLM_CDNS = [
+  "https://esm.run/@mlc-ai/web-llm",
+  "https://esm.sh/@mlc-ai/web-llm",
+];
 let webllm = null;
 
 async function ensureWebLLM() {
   if (webllm) return webllm;
-  webllm = await import(WEBLLM_URL);
-  return webllm;
+  let lastErr;
+  for (const url of WEBLLM_CDNS) {
+    try {
+      setStatus("loading WebLLM runtime… (" + new URL(url).host + ")");
+      webllm = await import(url);
+      return webllm;
+    } catch (e) {
+      console.warn("WebLLM import failed from", url, e);
+      lastErr = e;
+    }
+  }
+  throw new Error(
+    "Could not load WebLLM from any CDN (tried " +
+      WEBLLM_CDNS.map((u) => new URL(u).host).join(", ") +
+      "). Check your connection. Last error: " +
+      (lastErr?.message || lastErr)
+  );
 }
 
 // --- Curated list of small, phone-friendly models -------------------------
